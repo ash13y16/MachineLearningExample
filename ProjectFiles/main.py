@@ -13,12 +13,13 @@ Student 3: None
 '''
 
 # Add imports used throughout the project here
-# import pandas as pd # for main
-# import os # for main
+import pandas as pd # for main
+import os # for main
 import sklearn
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score # for debug
+from flask import Flask, jsonify
 
 lr = None
 
@@ -29,26 +30,26 @@ class UserPredictor:
         # use features: total seconds spent looking and total purchace amount to predict *add additional features if needed
         global lr
         lr = None
-        
+
+        # Combine given data to create a new, usable dataframe
         features_df = self.create_df(train_user, train_logs)
         features = ["seconds", "past_purchase_amt", "age", "badge"]
-        
+
+        # Fit Linear Regression model
         x_train, x_test, y_train, y_test = train_test_split(features_df[features], train_y["y"], test_size=0.2)
                 
         lr = LogisticRegression()
         lr.fit(x_train, y_train)
-        
-        # debug, maybe delete after done
-        # scores = cross_val_score(lr, features_df[features], train_y["y"])
-        # print(f"AVG: {scores.mean()}, STD: {scores.std()}\n")
 
 
     def predict(self, test_user, test_logs):
         global lr
-        if lr: 
+        if lr:
+            # Combine given data to create a new, usable dataframe
             features_df = self.create_df(test_user, test_logs)
             features = ["seconds", "past_purchase_amt", "age", "badge"]
-                        
+
+            # Predict using fitted data frame
             return lr.predict(features_df[features])
         else: 
             return None
@@ -68,23 +69,37 @@ class UserPredictor:
             features_df["badge"] = features_df["badge"].replace(badges[idx], idx)
         
         return features_df
-        
+
+    def getScores(self, test_user, test_logs, train_y):
+        global lr
+
+        # Combine given data to create a new, usable dataframe
+        features_df = self.create_df(test_user, test_logs)
+        features = ["seconds", "past_purchase_amt", "age", "badge"]
+
+        scores = cross_val_score(lr, features_df[features], train_y["y"])
+        return f"AVG: {scores.mean()}, STD: {scores.std()}\n"
+
+# main
+def main():
+    predictor = UserPredictor()
+    train_users = pd.read_csv(os.path.join("data", "train_users.csv"))
+    train_logs = pd.read_csv(os.path.join("data", "train_logs.csv"))
+    train_y = pd.read_csv(os.path.join("data", "train_y.csv"))
+    test_users = pd.read_csv(os.path.join("data", "test1_users.csv"))
+    test_logs = pd.read_csv(os.path.join("data", "test1_logs.csv"))
     
-    
-# TESTING PURPOSES ONLY : DELETE ONCE DONE
-# def main():
-#     predictor = UserPredictor()
-#     train_users = pd.read_csv(os.path.join("data", "train_users.csv"))
-#     train_logs = pd.read_csv(os.path.join("data", "train_logs.csv"))
-#     train_y = pd.read_csv(os.path.join("data", "train_y.csv"))
-#     test_users = pd.read_csv(os.path.join("data", "test1_users.csv"))
-#     test_logs = pd.read_csv(os.path.join("data", "test1_logs.csv"))
-    
-#     predictor.fit(train_users, train_logs, train_y)
-#     print(predictor.predict(test_users, test_logs))
-    
-# if __name__ == "__main__":
-#     main()
+    predictor.fit(train_users, train_logs, train_y)
+    return predictor.getScores(test_users, test_logs, train_y)
+
+app = Flask("MachineLearningExample")
+
+@app.route("/")
+def home():
+    return main()
+
+if __name__ == "__main__":
+    app.run()
 
 # Put the following in 'fit' as a debug print statement
 #scores = cross_val_score(model, train_users[self.xcols], train_y["y"])
