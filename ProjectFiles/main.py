@@ -15,6 +15,7 @@ Student 3: None
 # Add imports used throughout the project here
 # import pandas as pd # for main
 # import os # for main
+import sklearn
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score # for debug
