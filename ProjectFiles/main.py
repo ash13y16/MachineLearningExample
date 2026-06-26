@@ -70,11 +70,11 @@ class UserPredictor:
         
         return features_df
 
-    def getScores(self, test_user, test_logs, train_y):
+    def getScores(self, train_user, train_logs, train_y):
         global lr
 
         # Combine given data to create a new, usable dataframe
-        features_df = self.create_df(test_user, test_logs)
+        features_df = self.create_df(train_user, train_logs)
         features = ["seconds", "past_purchase_amt", "age", "badge"]
 
         scores = cross_val_score(lr, features_df[features], train_y["y"])
@@ -88,16 +88,15 @@ def main():
     train_y = pd.read_csv(os.path.join("data", "train_y.csv"))
     test_users = pd.read_csv(os.path.join("data", "test1_users.csv"))
     test_logs = pd.read_csv(os.path.join("data", "test1_logs.csv"))
-    
+    test_y = pd.read_csv(os.path.join("data", "test1_y.csv"))
+
     predictor.fit(train_users, train_logs, train_y)
 
-    print(test_users)
-
-    df = pd.DataFrame({"Names" : train_users["names"],
+    df = pd.DataFrame({
+    "Names" : test_users["names"],
     "Predicted_Email" : predictor.predict(test_users, test_logs),
-    "Actual_Email" : test_users["Predicted_Email"]})
-    print(df)
-    #return predictor.getScores(test_users, test_logs, train_y)
+    "Actual_Email" : test_y["y"]})
+#     return predictor.getScores(train_users, train_logs, train_y)
     return df.to_html()
 
 app = Flask("MachineLearningExample")
