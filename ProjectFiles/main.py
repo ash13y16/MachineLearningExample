@@ -90,7 +90,15 @@ def main():
     test_logs = pd.read_csv(os.path.join("data", "test1_logs.csv"))
     
     predictor.fit(train_users, train_logs, train_y)
-    return predictor.getScores(test_users, test_logs, train_y)
+
+    print(test_users)
+
+    df = pd.DataFrame({"Names" : train_users["names"],
+    "Predicted_Email" : predictor.predict(test_users, test_logs),
+    "Actual_Email" : test_users["Predicted_Email"]})
+    print(df)
+    #return predictor.getScores(test_users, test_logs, train_y)
+    return df.to_html()
 
 app = Flask("MachineLearningExample")
 
