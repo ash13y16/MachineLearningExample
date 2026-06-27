@@ -1,7 +1,7 @@
 '''
 Important!
-Enter your full name (as it appears on Canvas) and NetID.  
-If you are working in a group (maximum of 3 members), include the full names and NetIDs of all your partners.  
+Enter your full name (as it appears on Canvas) and NetID.
+If you are working in a group (maximum of 3 members), include the full names and NetIDs of all your partners.
 If you're working alone, enter `None` for the partner fields.
 '''
 
@@ -24,7 +24,7 @@ from flask import Flask, jsonify
 lr = None
 
 class UserPredictor:
-    def fit(self, train_user, train_logs, train_y): 
+    def fit(self, train_user, train_logs, train_y):
         # given data from train csvs, create a 'sklearn` model to fit the data
         # using the train data, create a lr to predict if the user clicked the email or not (y data)
         # use features: total seconds spent looking and total purchace amount to predict *add additional features if needed
@@ -37,7 +37,7 @@ class UserPredictor:
 
         # Fit Linear Regression model
         x_train, x_test, y_train, y_test = train_test_split(features_df[features], train_y["y"], test_size=0.2)
-                
+
         lr = LogisticRegression()
         lr.fit(x_train, y_train)
 
@@ -51,23 +51,23 @@ class UserPredictor:
 
             # Predict using fitted data frame
             return lr.predict(features_df[features])
-        else: 
+        else:
             return None
 
 
     def create_df(self, user, logs):
         # get total time spent by each user (where data is available)
         time_df = logs.groupby("user_id")["seconds"].sum()
-        
+
         # merge time_df into users_df, using user_id; fill nan with 0
-        features_df = user.merge(time_df, how="left", on="user_id") 
+        features_df = user.merge(time_df, how="left", on="user_id")
         features_df.fillna(0, inplace=True)
-        
+
         # turn badges into numerical values
         badges = ["bronze", "silver", "gold"]
         for idx in range(len(badges)):
             features_df["badge"] = features_df["badge"].replace(badges[idx], idx)
-        
+
         return features_df
 
     def getScores(self, train_user, train_logs, train_y):
@@ -78,7 +78,8 @@ class UserPredictor:
         features = ["seconds", "past_purchase_amt", "age", "badge"]
 
         scores = cross_val_score(lr, features_df[features], train_y["y"])
-        return f"AVG: {scores.mean()}, STD: {scores.std()}\n"
+        return f"""<div>The average performance of this model: {scores.mean()}</div>
+        <div>The standard deviation across runs: {scores.std()}</div>"""
 
 # main
 def main():
@@ -96,8 +97,15 @@ def main():
     "Names" : test_users["names"],
     "Predicted_Email" : predictor.predict(test_users, test_logs),
     "Actual_Email" : test_y["y"]})
-#     return predictor.getScores(train_users, train_logs, train_y)
-    return df.to_html()
+    return f"""
+    <html><body style="width: 100%;">
+        <div style="display: inline-block; width: fit-content; vertical-align: top;">
+            {df.to_html()}
+        </div>
+        <div style="display: inline-block; width: fit-content; padding-left: 30px; vertical-align: top;">
+            {predictor.getScores(train_users, train_logs, train_y)}
+        </div>
+    </body></html>"""
 
 app = Flask("MachineLearningExample")
 
