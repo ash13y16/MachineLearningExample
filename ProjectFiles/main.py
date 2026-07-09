@@ -20,6 +20,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score # for debug
 from flask import Flask, jsonify
+from sklearn.preprocessing import StandardScaler
 
 lr = None
 
@@ -33,10 +34,14 @@ class UserPredictor:
 
         # Combine given data to create a new, usable dataframe
         features_df = self.create_df(train_user, train_logs)
-        features = ["seconds", "past_purchase_amt", "age", "badge"]
+        features = ["seconds", "past_purchase_amt", "age", "badge", "days", "month_count"]
 
         # Fit Linear Regression model
         x_train, x_test, y_train, y_test = train_test_split(features_df[features], train_y["y"], test_size=0.2)
+
+        sc = StandardScaler()
+        x_train = sc.fit_transform(x_train)
+        x_test = sc.transform(x_test)
 
         lr = LogisticRegression()
         lr.fit(x_train, y_train)
@@ -47,7 +52,7 @@ class UserPredictor:
         if lr:
             # Combine given data to create a new, usable dataframe
             features_df = self.create_df(test_user, test_logs)
-            features = ["seconds", "past_purchase_amt", "age", "badge"]
+            features = ["seconds", "past_purchase_amt", "age", "badge", "days", "month_count"]
 
             # Predict using fitted data frame
             return lr.predict(features_df[features])
@@ -56,11 +61,19 @@ class UserPredictor:
 
 
     def create_df(self, user, logs):
-        # get total time spent by each user (where data is available)
+        # get total time spent by each user and date (where data is available)
         time_df = logs.groupby("user_id")["seconds"].sum()
+        days_df = logs.groupby("user_id")["date"].count().rename("days")
+        # get max number of times visited in one month
+        logs = logs[logs["date"] != "2/29/2021"]
+        logs["date"] = pd.to_datetime(logs["date"], format="%m/%d/%Y")
+        logs["month"] = logs["date"].dt.to_period("M")
+        date_df = logs.groupby(["user_id", "month"]).size().groupby("user_id").max().rename("month_count")
 
-        # merge time_df into users_df, using user_id; fill nan with 0
+        # merge time_df and days_df into users_df, using user_id; fill nan with 0
         features_df = user.merge(time_df, how="left", on="user_id")
+        features_df = features_df.merge(days_df, how="left", on="user_id")
+        features_df = features_df.merge(date_df, how="left", on="user_id")
         features_df.fillna(0, inplace=True)
 
         # turn badges into numerical values
@@ -75,7 +88,7 @@ class UserPredictor:
 
         # Combine given data to create a new, usable dataframe
         features_df = self.create_df(train_user, train_logs)
-        features = ["seconds", "past_purchase_amt", "age", "badge"]
+        features = ["seconds", "past_purchase_amt", "age", "badge", "days", "month_count"]
 
         scores = cross_val_score(lr, features_df[features], train_y["y"])
         return f"""<div>The average performance of this model: {scores.mean()}</div>
